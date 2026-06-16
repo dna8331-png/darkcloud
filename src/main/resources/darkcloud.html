@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DarkCloud — Threat Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c22;
+    --border: #1f2430;
+    --border2: #2a3040;
+    --text: #e2e8f0;
+    --muted: #6b7a99;
+    --accent: #3b82f6;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --red-bg: rgba(239,68,68,0.1);
+    --orange-bg: rgba(249,115,22,0.1);
+    --yellow-bg: rgba(234,179,8,0.1);
+    --green-bg: rgba(34,197,94,0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    padding: 20px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  nav { padding: 12px 0; flex: 1; }
+
+  .nav-section { padding: 8px 18px 4px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 18px;
+    color: var(--muted);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .nav-icon { font-size: 16px; width: 18px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Main */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 5;
+  }
+
+  .page-title { font-size: 16px; font-weight: 600; }
+  .page-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2563eb; color: #fff; }
+
+  .content { padding: 28px; flex: 1; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .stat-change { font-size: 11px; margin-top: 6px; }
+
+  /* Table section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .section-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+
+  .filters { display: flex; gap: 6px; }
+
+  .filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { color: var(--text); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th { padding: 10px 20px; text-align: left; font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; }
+  td { padding: 14px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .badge-critical { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-high { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+  .badge-medium { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(234,179,8,0.2); }
+  .badge-low { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .badge-active { background: rgba(239,68,68,0.08); color: var(--red); border: 1px solid rgba(239,68,68,0.15); }
+  .badge-resolved { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+
+  .type-icon { font-size: 18px; margin-right: 8px; vertical-align: middle; }
+
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  .loading { padding: 40px; text-align: center; color: var(--muted); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); padding: 0 20px; }
+  .tab {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Grid for 2 cols */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .id-cell { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .last-updated { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">☁️</div>
+    <div>
+      <div class="logo-text">DarkCloud</div>
+      <div class="logo-sub">Threat Intel</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-section">Monitor</div>
+    <div class="nav-item active" onclick="showPage('threats')">
+      <span class="nav-icon">🛡️</span> Threats
+    </div>
+    <div class="nav-item" onclick="showPage('actors')">
+      <span class="nav-icon">👤</span> Actors
+    </div>
+    <div class="nav-item" onclick="showPage('indicators')">
+      <span class="nav-icon">🔍</span> Indicators
+    </div>
+    <div class="nav-item" onclick="showPage('vulnerabilities')">
+      <span class="nav-icon">⚠️</span> Vulnerabilities
+    </div>
+    <div class="nav-item" onclick="showPage('relationships')">
+      <span class="nav-icon">🔗</span> Relationships
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="status-dot"></span> API Live
+    <div id="last-upd" style="margin-top:4px;"></div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Threats</div>
+      <div class="page-sub" id="page-sub">Real-time threat monitoring</div>
+    </div>
+    <div class="topbar-actions">
+      <span class="last-updated" id="refresh-time"></span>
+      <button class="btn" onclick="refreshAll()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Threats Page -->
+    <div id="page-threats">
+      <div class="stats-grid" id="threat-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">🛡️ All threats</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterThreats('All',this)">All</button>
+            <button class="filter-btn" onclick="filterThreats('Active',this)">Active</button>
+            <button class="filter-btn" onclick="filterThreats('Resolved',this)">Resolved</button>
+            <button class="filter-btn" onclick="filterThreats('CRITICAL',this)">Critical</button>
+          </div>
+        </div>
+        <div id="threats-table"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Actors Page -->
+    <div id="page-actors" style="display:none">
+      <div class="section">
+        <div class="section-header"><div class="section-title">👤 Threat actors</div></div>
+        <div id="actors-table"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Indicators Page -->
+    <div id="page-indicators" style="display:none">
+      <div class="section">
+        <div class="section-header"><div class="section-title">🔍 Indicators of compromise</div></div>
+        <div id="indicators-table"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Vulnerabilities Page -->
+    <div id="page-vulnerabilities" style="display:none">
+      <div class="section">
+        <div class="section-header"><div class="section-title">⚠️ Vulnerabilities</div></div>
+        <div id="vulnerabilities-table"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Relationships Page -->
+    <div id="page-relationships" style="display:none">
+      <div class="section">
+        <div class="section-header"><div class="section-title">🔗 Relationships</div></div>
+        <div id="relationships-table"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://darkcloud-production.up.railway.app/api';
+let allThreats = [], currentFilter = 'All';
+
+const pages = {
+  threats: { title: 'Threats', sub: 'Real-time threat monitoring' },
+  actors: { title: 'Threat actors', sub: 'Known threat actors and groups' },
+  indicators: { title: 'Indicators', sub: 'Indicators of compromise (IOC)' },
+  vulnerabilities: { title: 'Vulnerabilities', sub: 'Known security vulnerabilities' },
+  relationships: { title: 'Relationships', sub: 'Actor-threat relationships' },
+};
+
+function showPage(name) {
+  document.querySelectorAll('.main > .content > div[id^="page-"]').forEach(p => p.style.display = 'none');
+  document.getElementById('page-' + name).style.display = 'block';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('page-title').textContent = pages[name].title;
+  document.getElementById('page-sub').textContent = pages[name].sub;
+}
+
+function sevBadge(s) {
+  if (!s) return '<span class="badge">—</span>';
+  const c = s.toUpperCase();
+  return `<span class="badge badge-${c.toLowerCase()}">${c}</span>`;
+}
+
+function statusBadge(s) {
+  if (!s) return '—';
+  return `<span class="badge badge-${s.toLowerCase()}">${s}</span>`;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '<span style="color:var(--muted)">—</span>';
+  const d = new Date(ts);
+  return d.toLocaleDateString();
+}
+
+async function fetchData(endpoint) {
+  try {
+    const r = await fetch(BASE + endpoint);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function loadThreats() {
+  const data = await fetchData('/threats');
+  if (!data) { document.getElementById('threats-table').innerHTML = '<div class="empty">⚠️ Failed to load. Check API.</div>'; return; }
+  allThreats = data;
+  renderThreatStats();
+  renderThreats();
+}
+
+function renderThreatStats() {
+  const total = allThreats.length;
+  const active = allThreats.filter(t => t.status === 'Active').length;
+  const critical = allThreats.filter(t => t.severity === 'CRITICAL').length;
+  const resolved = allThreats.filter(t => t.status === 'Resolved').length;
+  document.getElementById('threat-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total threats</div><div class="stat-value" style="color:var(--text)">${total}</div><div class="stat-change" style="color:var(--muted)">All time</div></div>
+    <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value" style="color:var(--red)">${active}</div><div class="stat-change" style="color:var(--red)">Needs attention</div></div>
+    <div class="stat-card"><div class="stat-label">Critical</div><div class="stat-value" style="color:var(--orange)">${critical}</div><div class="stat-change" style="color:var(--orange)">High priority</div></div>
+    <div class="stat-card"><div class="stat-label">Resolved</div><div class="stat-value" style="color:var(--green)">${resolved}</div><div class="stat-change" style="color:var(--green)">Closed</div></div>
+  `;
+}
+
+function filterThreats(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderThreats();
+}
+
+const typeIcon = { 'Data Breach':'💾', 'Leaked Secret':'🔑', 'Brute Force':'🔓', 'Social Engineering':'🎭', 'Malware':'🦠' };
+
+function renderThreats() {
+  let list = allThreats;
+  if (currentFilter === 'Active') list = list.filter(t => t.status === 'Active');
+  else if (currentFilter === 'Resolved') list = list.filter(t => t.status === 'Resolved');
+  else if (currentFilter === 'CRITICAL') list = list.filter(t => t.severity === 'CRITICAL');
+
+  if (!list.length) { document.getElementById('threats-table').innerHTML = '<div class="empty">No threats found.</div>'; return; }
+
+  document.getElementById('threats-table').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Type</th><th>Description</th><th>Severity</th><th>Status</th><th>Timestamp</th>
+      </tr></thead>
+      <tbody>
+        ${list.map(t => `<tr>
+          <td class="id-cell">#${t.id}</td>
+          <td><span class="type-icon">${typeIcon[t.type]||'⚡'}</span>${t.type}</td>
+          <td style="color:var(--muted);max-width:260px">${t.description}</td>
+          <td>${sevBadge(t.severity)}</td>
+          <td>${statusBadge(t.status)}</td>
+          <td>${timeAgo(t.timestamp)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function loadActors() {
+  const data = await fetchData('/actors');
+  const el = document.getElementById('actors-table');
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No actors found or API not available.</div>'; return; }
+  const keys = Object.keys(data[0]);
+  el.innerHTML = `<table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>
+    ${data.map(r=>`<tr>${keys.map(k=>`<td>${r[k]??'—'}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function loadIndicators() {
+  const data = await fetchData('/indicators');
+  const el = document.getElementById('indicators-table');
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No indicators found or API not available.</div>'; return; }
+  const keys = Object.keys(data[0]);
+  el.innerHTML = `<table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>
+    ${data.map(r=>`<tr>${keys.map(k=>`<td>${r[k]??'—'}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function loadVulnerabilities() {
+  const data = await fetchData('/vulnerabilities');
+  const el = document.getElementById('vulnerabilities-table');
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No vulnerabilities found or API not available.</div>'; return; }
+  const keys = Object.keys(data[0]);
+  el.innerHTML = `<table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>
+    ${data.map(r=>`<tr>${keys.map(k=>`<td>${r[k]??'—'}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function loadRelationships() {
+  const data = await fetchData('/relationships');
+  const el = document.getElementById('relationships-table');
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No relationships found or API not available.</div>'; return; }
+  const keys = Object.keys(data[0]);
+  el.innerHTML = `<table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>
+    ${data.map(r=>`<tr>${keys.map(k=>`<td>${r[k]??'—'}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
+}
+
+function refreshAll() {
+  loadThreats();
+  loadActors();
+  loadIndicators();
+  loadVulnerabilities();
+  loadRelationships();
+  const now = new Date();
+  document.getElementById('refresh-time').textContent = 'Updated ' + now.toLocaleTimeString();
+  document.getElementById('last-upd').textContent = now.toLocaleTimeString();
+}
+
+refreshAll();
+</script>
+</body>
+</html>

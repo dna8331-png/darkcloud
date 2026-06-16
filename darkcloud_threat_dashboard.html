@@ -1,0 +1,148 @@
+
+<h2 class="sr-only">DarkCloud Threat Monitoring Dashboard - Live threats from API</h2>
+
+<div style="padding: 1.5rem 0;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <i class="ti ti-shield-bolt" style="font-size: 24px; color: var(--color-text-danger);" aria-hidden="true"></i>
+      <span style="font-size: 18px; font-weight: 500; color: var(--color-text-primary);">DarkCloud threat monitor</span>
+    </div>
+    <button id="refresh-btn" onclick="loadThreats()" style="display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 14px; cursor: pointer;">
+      <i class="ti ti-refresh" id="refresh-icon" style="font-size: 15px;" aria-hidden="true"></i> Refresh
+    </button>
+  </div>
+
+  <div id="stats" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem;"></div>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap;">
+    <button class="filter-btn active" data-filter="All" onclick="setFilter('All', this)" style="font-size: 12px; padding: 5px 14px; cursor: pointer; border-radius: 20px;">All</button>
+    <button class="filter-btn" data-filter="Active" onclick="setFilter('Active', this)" style="font-size: 12px; padding: 5px 14px; cursor: pointer; border-radius: 20px;">Active</button>
+    <button class="filter-btn" data-filter="Resolved" onclick="setFilter('Resolved', this)" style="font-size: 12px; padding: 5px 14px; cursor: pointer; border-radius: 20px;">Resolved</button>
+    <button class="filter-btn" data-filter="CRITICAL" onclick="setFilter('CRITICAL', this)" style="font-size: 12px; padding: 5px 14px; cursor: pointer; border-radius: 20px;">Critical only</button>
+  </div>
+
+  <div id="threat-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+  <div id="loading" style="text-align: center; padding: 2rem; color: var(--color-text-secondary); font-size: 14px;"><i class="ti ti-loader" style="font-size:20px; vertical-align:-4px;"></i> Loading threats...</div>
+  <div id="last-updated" style="margin-top: 1rem; font-size: 12px; color: var(--color-text-tertiary); text-align: right;"></div>
+</div>
+
+<style>
+.filter-btn { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
+.filter-btn.active { background: var(--color-background-primary); border: 1.5px solid var(--color-border-primary); color: var(--color-text-primary); font-weight: 500; }
+.filter-btn:hover { background: var(--color-background-primary); }
+.threat-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.threat-card:hover { border-color: var(--color-border-secondary); }
+</style>
+
+<script>
+let allThreats = [];
+let currentFilter = 'All';
+
+const severityConfig = {
+  CRITICAL: { bg: '#FCEBEB', color: '#A32D2D', border: '#F09595', icon: 'ti-alert-octagon' },
+  HIGH:     { bg: '#FAEEDA', color: '#854F0B', border: '#FAC775', icon: 'ti-alert-triangle' },
+  MEDIUM:   { bg: '#E6F1FB', color: '#185FA5', border: '#85B7EB', icon: 'ti-info-circle' },
+  LOW:      { bg: '#EAF3DE', color: '#3B6D11', border: '#97C459', icon: 'ti-circle-check' },
+};
+
+const typeIcons = {
+  'Data Breach': 'ti-database-leak',
+  'Leaked Secret': 'ti-key',
+  'Brute Force': 'ti-lock-open',
+  'Social Engineering': 'ti-user-exclamation',
+  'Malware': 'ti-virus',
+};
+
+async function loadThreats() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('threat-list').innerHTML = '';
+  document.getElementById('refresh-icon').style.animation = 'spin 1s linear infinite';
+
+  try {
+    const res = await fetch('https://darkcloud-production.up.railway.app/api/threats');
+    allThreats = await res.json();
+    renderThreats();
+    renderStats();
+    const now = new Date();
+    document.getElementById('last-updated').textContent = 'Last updated: ' + now.toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<i class="ti ti-wifi-off" style="font-size:18px; vertical-align:-3px;"></i> Failed to fetch threats. Please retry.';
+  }
+  document.getElementById('refresh-icon').style.animation = '';
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderThreats();
+}
+
+function renderStats() {
+  const total = allThreats.length;
+  const active = allThreats.filter(t => t.status === 'Active').length;
+  const critical = allThreats.filter(t => t.severity === 'CRITICAL').length;
+  const resolved = allThreats.filter(t => t.status === 'Resolved').length;
+
+  document.getElementById('stats').innerHTML = `
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; text-align: center;">
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;">Total</p>
+      <p style="font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary);">${total}</p>
+    </div>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; text-align: center;">
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;">Active</p>
+      <p style="font-size: 22px; font-weight: 500; margin: 0; color: #A32D2D;">${active}</p>
+    </div>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; text-align: center;">
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;">Critical</p>
+      <p style="font-size: 22px; font-weight: 500; margin: 0; color: #A32D2D;">${critical}</p>
+    </div>
+    <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; text-align: center;">
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 4px;">Resolved</p>
+      <p style="font-size: 22px; font-weight: 500; margin: 0; color: #3B6D11;">${resolved}</p>
+    </div>
+  `;
+}
+
+function renderThreats() {
+  document.getElementById('loading').style.display = 'none';
+  let filtered = allThreats;
+  if (currentFilter === 'Active') filtered = allThreats.filter(t => t.status === 'Active');
+  else if (currentFilter === 'Resolved') filtered = allThreats.filter(t => t.status === 'Resolved');
+  else if (currentFilter === 'CRITICAL') filtered = allThreats.filter(t => t.severity === 'CRITICAL');
+
+  const list = document.getElementById('threat-list');
+  if (!filtered.length) {
+    list.innerHTML = '<p style="text-align:center; color: var(--color-text-secondary); padding: 2rem;">No threats found.</p>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => {
+    const sev = severityConfig[t.severity] || severityConfig.LOW;
+    const icon = typeIcons[t.type] || 'ti-alert-circle';
+    const statusColor = t.status === 'Active' ? '#A32D2D' : '#3B6D11';
+    const statusBg = t.status === 'Active' ? '#FCEBEB' : '#EAF3DE';
+    return `
+    <div class="threat-card">
+      <div style="display: flex; align-items: flex-start; gap: 14px; flex: 1;">
+        <div style="width: 40px; height: 40px; border-radius: var(--border-radius-md); background: ${sev.bg}; border: 0.5px solid ${sev.border}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i class="ti ${icon}" style="font-size: 20px; color: ${sev.color};" aria-hidden="true"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+            <span style="font-size: 14px; font-weight: 500; color: var(--color-text-primary);">${t.type}</span>
+            <span style="font-size: 11px; padding: 2px 10px; border-radius: 20px; background: ${sev.bg}; color: ${sev.color}; border: 0.5px solid ${sev.border};">${t.severity}</span>
+          </div>
+          <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0;">${t.description}</p>
+        </div>
+      </div>
+      <div style="flex-shrink: 0; text-align: right;">
+        <span style="font-size: 11px; padding: 3px 10px; border-radius: 20px; background: ${statusBg}; color: ${statusColor};">${t.status}</span>
+        <p style="font-size: 11px; color: var(--color-text-tertiary); margin: 6px 0 0; text-align: right;">ID #${t.id}</p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+loadThreats();
+</script>
