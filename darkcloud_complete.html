@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DarkCloud — Threat Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0c10; --surface: #111318; --surface2: #181c22;
+    --border: #1f2430; --border2: #2a3040; --text: #e2e8f0; --muted: #6b7a99;
+    --accent: #3b82f6; --red: #ef4444; --orange: #f97316; --yellow: #eab308;
+    --green: #22c55e; --purple: #a855f7; --cyan: #06b6d4;
+    --red-bg: rgba(239,68,68,0.1); --orange-bg: rgba(249,115,22,0.1);
+    --yellow-bg: rgba(234,179,8,0.1); --green-bg: rgba(34,197,94,0.1);
+    --purple-bg: rgba(168,85,247,0.1); --cyan-bg: rgba(6,182,212,0.1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; min-height:100vh; display:flex; }
+
+  .sidebar { width:220px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:10; }
+  .logo { padding:20px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .logo-icon { width:32px; height:32px; background:linear-gradient(135deg,#1d4ed8,#7c3aed); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .logo-text { font-size:15px; font-weight:600; letter-spacing:-0.3px; }
+  .logo-sub { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  nav { padding:12px 0; flex:1; }
+  .nav-section { padding:8px 18px 4px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 18px; color:var(--muted); cursor:pointer; border-left:2px solid transparent; transition:all 0.15s; font-size:13px; }
+  .nav-item:hover { color:var(--text); background:var(--surface2); }
+  .nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(59,130,246,0.08); }
+  .nav-icon { font-size:16px; width:18px; text-align:center; }
+  .sidebar-footer { padding:14px 18px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block; margin-right:6px; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .main { margin-left:220px; flex:1; display:flex; flex-direction:column; min-height:100vh; }
+  .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:5; }
+  .page-title { font-size:16px; font-weight:600; }
+  .page-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .topbar-actions { display:flex; gap:10px; align-items:center; }
+  .btn { padding:7px 14px; border-radius:7px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border2); background:var(--surface2); color:var(--text); transition:all 0.15s; }
+  .btn:hover { border-color:var(--accent); color:var(--accent); }
+  .content { padding:28px; flex:1; }
+
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .card-blue::before { background:var(--accent); }
+  .card-red::before { background:var(--red); }
+  .card-orange::before { background:var(--orange); }
+  .card-green::before { background:var(--green); }
+  .card-purple::before { background:var(--purple); }
+  .card-cyan::before { background:var(--cyan); }
+  .card-yellow::before { background:var(--yellow); }
+  .stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px; }
+  .stat-value { font-size:28px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+  .stat-change { font-size:11px; margin-top:6px; }
+
+  .section { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:20px; }
+  .section-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .section-title { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .filters { display:flex; gap:6px; }
+  .filter-btn { padding:5px 12px; border-radius:20px; font-size:11px; cursor:pointer; border:1px solid var(--border2); background:transparent; color:var(--muted); transition:all 0.15s; }
+  .filter-btn:hover { color:var(--text); }
+  .filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  table { width:100%; border-collapse:collapse; }
+  thead tr { border-bottom:1px solid var(--border); }
+  th { padding:10px 20px; text-align:left; font-size:11px; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:0.8px; }
+  td { padding:14px 20px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr { transition:background 0.1s; cursor:pointer; }
+  tbody tr:hover { background:var(--surface2); }
+
+  .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; font-family:'JetBrains Mono',monospace; }
+  .badge-critical { background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.2); }
+  .badge-high { background:var(--orange-bg); color:var(--orange); border:1px solid rgba(249,115,22,0.2); }
+  .badge-medium { background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(234,179,8,0.2); }
+  .badge-low { background:var(--green-bg); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+  .badge-active { background:rgba(239,68,68,0.08); color:var(--red); border:1px solid rgba(239,68,68,0.15); }
+  .badge-resolved { background:var(--green-bg); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+  .badge-investigating { background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(234,179,8,0.2); }
+  .badge-nation-state,.badge-nationstate { background:var(--red-bg); color:var(--red); border:1px solid rgba(239,68,68,0.2); }
+  .badge-cybercriminal { background:var(--orange-bg); color:var(--orange); border:1px solid rgba(249,115,22,0.2); }
+  .badge-hacktivist { background:var(--purple-bg); color:var(--purple); border:1px solid rgba(168,85,247,0.2); }
+  .badge-ip { background:var(--cyan-bg); color:var(--cyan); border:1px solid rgba(6,182,212,0.2); }
+  .badge-domain { background:var(--purple-bg); color:var(--purple); border:1px solid rgba(168,85,247,0.2); }
+  .badge-hash { background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(234,179,8,0.2); }
+  .badge-url { background:var(--orange-bg); color:var(--orange); border:1px solid rgba(249,115,22,0.2); }
+  .badge-email,.badge-confirmed { background:rgba(59,130,246,0.1); color:var(--accent); border:1px solid rgba(59,130,246,0.2); }
+  .badge-suspicious,.badge-suspected { background:var(--yellow-bg); color:var(--yellow); border:1px solid rgba(234,179,8,0.2); }
+
+  .empty { padding:60px; text-align:center; color:var(--muted); }
+  .empty-icon { font-size:36px; margin-bottom:12px; }
+  .loading { padding:40px; text-align:center; color:var(--muted); }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .last-updated { font-size:11px; color:var(--muted); }
+  .id-cell { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+  .mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .actor-name { font-weight:600; font-size:13px; }
+  .actor-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .ioc-value { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--cyan); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cve-id { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--orange); font-weight:600; }
+  .score-bar { display:flex; align-items:center; gap:8px; }
+  .score-track { width:70px; height:4px; background:var(--border2); border-radius:2px; overflow:hidden; }
+  .score-fill { height:100%; border-radius:2px; }
+  .rel-from { color:var(--accent); font-weight:500; }
+  .rel-to { color:var(--orange); font-weight:500; }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border2); border-radius:16px; padding:28px; width:520px; max-width:90vw; max-height:80vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .modal-title { font-size:16px; font-weight:600; }
+  .modal-close { cursor:pointer; color:var(--muted); font-size:22px; line-height:1; background:none; border:none; }
+  .modal-close:hover { color:var(--text); }
+  .modal-row { display:flex; gap:12px; margin-bottom:12px; align-items:flex-start; }
+  .modal-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; width:120px; flex-shrink:0; padding-top:2px; }
+  .modal-value { font-size:13px; flex:1; word-break:break-all; }
+  .modal-divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">☁️</div>
+    <div><div class="logo-text">DarkCloud</div><div class="logo-sub">Threat Intel</div></div>
+  </div>
+  <nav>
+    <div class="nav-section">Monitor</div>
+    <div class="nav-item active" onclick="showPage('threats',this)"><span class="nav-icon">🛡️</span> Threats</div>
+    <div class="nav-item" onclick="showPage('actors',this)"><span class="nav-icon">👤</span> Actors</div>
+    <div class="nav-item" onclick="showPage('indicators',this)"><span class="nav-icon">🔍</span> Indicators</div>
+    <div class="nav-item" onclick="showPage('vulnerabilities',this)"><span class="nav-icon">⚠️</span> Vulnerabilities</div>
+    <div class="nav-item" onclick="showPage('relationships',this)"><span class="nav-icon">🔗</span> Relationships</div>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="status-dot"></span> API Live
+    <div id="last-upd" style="margin-top:4px"></div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Threats</div>
+      <div class="page-sub" id="page-sub">Real-time threat monitoring</div>
+    </div>
+    <div class="topbar-actions">
+      <span class="last-updated" id="refresh-time"></span>
+      <button class="btn" onclick="refreshAll()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- THREATS -->
+    <div id="page-threats">
+      <div class="stats-grid" id="threat-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">🛡️ All threats</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterThreats('All',this)">All</button>
+            <button class="filter-btn" onclick="filterThreats('Active',this)">Active</button>
+            <button class="filter-btn" onclick="filterThreats('Resolved',this)">Resolved</button>
+            <button class="filter-btn" onclick="filterThreats('CRITICAL',this)">Critical</button>
+          </div>
+        </div>
+        <div id="threats-table"><div class="loading"><span class="spinner"></span> Loading threats...</div></div>
+      </div>
+    </div>
+
+    <!-- ACTORS -->
+    <div id="page-actors" style="display:none">
+      <div class="stats-grid" id="actor-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">👤 Threat actors</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterActors('All',this)">All</button>
+            <button class="filter-btn" onclick="filterActors('Nation-State',this)">Nation-State</button>
+            <button class="filter-btn" onclick="filterActors('Cybercriminal',this)">Cybercriminal</button>
+            <button class="filter-btn" onclick="filterActors('Hacktivist',this)">Hacktivist</button>
+          </div>
+        </div>
+        <div id="actors-table"><div class="loading"><span class="spinner"></span> Loading actors...</div></div>
+      </div>
+    </div>
+
+    <!-- INDICATORS -->
+    <div id="page-indicators" style="display:none">
+      <div class="stats-grid" id="ioc-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">🔍 Indicators of compromise</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterIOC('All',this)">All</button>
+            <button class="filter-btn" onclick="filterIOC('IP',this)">IP</button>
+            <button class="filter-btn" onclick="filterIOC('Domain',this)">Domain</button>
+            <button class="filter-btn" onclick="filterIOC('Hash',this)">Hash</button>
+            <button class="filter-btn" onclick="filterIOC('URL',this)">URL</button>
+          </div>
+        </div>
+        <div id="indicators-table"><div class="loading"><span class="spinner"></span> Loading indicators...</div></div>
+      </div>
+    </div>
+
+    <!-- VULNERABILITIES -->
+    <div id="page-vulnerabilities" style="display:none">
+      <div class="stats-grid" id="vuln-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">⚠️ Vulnerabilities</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterVulns('All',this)">All</button>
+            <button class="filter-btn" onclick="filterVulns('CRITICAL',this)">Critical</button>
+            <button class="filter-btn" onclick="filterVulns('HIGH',this)">High</button>
+            <button class="filter-btn" onclick="filterVulns('MEDIUM',this)">Medium</button>
+          </div>
+        </div>
+        <div id="vulnerabilities-table"><div class="loading"><span class="spinner"></span> Loading vulnerabilities...</div></div>
+      </div>
+    </div>
+
+    <!-- RELATIONSHIPS -->
+    <div id="page-relationships" style="display:none">
+      <div class="stats-grid" id="rel-stats"></div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">🔗 Actor-Threat relationships</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filterRels('All',this)">All</button>
+            <button class="filter-btn" onclick="filterRels('Confirmed',this)">Confirmed</button>
+            <button class="filter-btn" onclick="filterRels('Suspected',this)">Suspected</button>
+          </div>
+        </div>
+        <div id="relationships-table"><div class="loading"><span class="spinner"></span> Loading relationships...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<script>
+const BASE = 'https://darkcloud-production.up.railway.app/api';
+let allThreats=[], allActors=[], allIOC=[], allVulns=[], allRels=[];
+let threatFilter='All', actorFilter='All', iocFilter='All', vulnFilter='All', relFilter='All';
+
+const MOCK = {
+  threats: [
+    {id:1,type:'Data Breach',description:'Cloud credentials leaked on dark web forum',severity:'HIGH',status:'Active',timestamp:'2025-01-10'},
+    {id:2,type:'Leaked Secret',description:'AWS API keys found on pastebin',severity:'CRITICAL',status:'Active',timestamp:'2025-01-12'},
+    {id:3,type:'Brute Force',description:'Multiple failed login attempts detected',severity:'MEDIUM',status:'Resolved',timestamp:'2025-01-08'},
+    {id:4,type:'Social Engineering',description:'Targeted phishing emails sent to cloud admins',severity:'HIGH',status:'Active',timestamp:'2025-01-13'},
+    {id:5,type:'Malware',description:'Malicious file uploaded to cloud storage bucket',severity:'CRITICAL',status:'Active',timestamp:'2025-01-14'},
+    {id:6,type:'Ransomware',description:'Ransomware detected on internal file server',severity:'CRITICAL',status:'Investigating',timestamp:'2025-01-15'},
+    {id:7,type:'Phishing',description:'Spear phishing campaign targeting executives',severity:'HIGH',status:'Active',timestamp:'2025-01-11'},
+    {id:8,type:'DDoS',description:'Volumetric attack on public-facing API gateway',severity:'MEDIUM',status:'Resolved',timestamp:'2025-01-07'},
+  ],
+  actors: [
+    {id:1,name:'APT-29 (Cozy Bear)',type:'Nation-State',origin:'Russia',motive:'Espionage',threat_level:'CRITICAL',aliases:'Cozy Bear, The Dukes',description:'Russian SVR-linked group known for stealthy intrusions'},
+    {id:2,name:'Lazarus Group',type:'Nation-State',origin:'North Korea',motive:'Financial / Espionage',threat_level:'CRITICAL',aliases:'Hidden Cobra, Zinc',description:'North Korean group targeting financial institutions and crypto'},
+    {id:3,name:'FIN7',type:'Cybercriminal',origin:'Eastern Europe',motive:'Financial',threat_level:'HIGH',aliases:'Carbanak, Navigator Group',description:'Sophisticated cybercrime group targeting retail and hospitality'},
+    {id:4,name:'Anonymous Sudan',type:'Hacktivist',origin:'Sudan',motive:'Political',threat_level:'MEDIUM',aliases:'ANONSUD',description:'Hacktivist collective conducting DDoS attacks against Western targets'},
+    {id:5,name:'Scattered Spider',type:'Cybercriminal',origin:'Unknown',motive:'Financial',threat_level:'HIGH',aliases:'Starfraud, UNC3944',description:'Social engineering specialists targeting tech companies'},
+    {id:6,name:'Sandworm',type:'Nation-State',origin:'Russia',motive:'Sabotage',threat_level:'CRITICAL',aliases:'Voodoo Bear, BlackEnergy',description:'Russian GRU unit behind destructive cyberattacks on infrastructure'},
+  ],
+  indicators: [
+    {id:1,type:'IP',value:'185.220.101.47',confidence:9.2,status:'Active',threat_id:2,created_at:'2025-01-12'},
+    {id:2,type:'Domain',value:'update-microsoft-secure.com',confidence:8.7,status:'Active',threat_id:4,created_at:'2025-01-11'},
+    {id:3,type:'Hash',value:'a3f5c2d1e9b7f043ac12378de9012bca',confidence:10,status:'Active',threat_id:5,created_at:'2025-01-14'},
+    {id:4,type:'IP',value:'91.108.4.136',confidence:7.5,status:'Suspicious',threat_id:1,created_at:'2025-01-10'},
+    {id:5,type:'URL',value:'http://45.33.32.156/payload/stage2.exe',confidence:9.8,status:'Active',threat_id:5,created_at:'2025-01-14'},
+    {id:6,type:'Domain',value:'cloud-auth-verify.net',confidence:8.1,status:'Active',threat_id:4,created_at:'2025-01-13'},
+    {id:7,type:'Hash',value:'d41d8cd98f00b204e9800998ecf8427e',confidence:6.3,status:'Suspicious',threat_id:3,created_at:'2025-01-08'},
+    {id:8,type:'IP',value:'203.0.113.99',confidence:5.4,status:'Resolved',threat_id:8,created_at:'2025-01-07'},
+    {id:9,type:'Email',value:'admin-alerts@microsoft-secure.org',confidence:9.5,status:'Active',threat_id:4,created_at:'2025-01-11'},
+  ],
+  vulnerabilities: [
+    {id:1,cve_id:'CVE-2024-49113',name:'Log4Shell RCE',description:'Remote code execution in Apache Log4j logging library via JNDI lookup',severity:'CRITICAL',cvss_score:10.0,status:'Unpatched',affected_systems:'Java apps, Apache Solr, VMware'},
+    {id:2,cve_id:'CVE-2024-21762',name:'FortiOS Auth Bypass',description:'Out-of-bounds write in FortiOS SSL-VPN allowing unauthenticated RCE',severity:'CRITICAL',cvss_score:9.8,status:'Patched',affected_systems:'FortiOS 6.x, 7.x'},
+    {id:3,cve_id:'CVE-2024-3400',name:'PAN-OS Command Injection',description:'Command injection in PAN-OS GlobalProtect gateway via crafted cookies',severity:'CRITICAL',cvss_score:10.0,status:'Patched',affected_systems:'Palo Alto PAN-OS'},
+    {id:4,cve_id:'CVE-2024-27198',name:'TeamCity Auth Bypass',description:'Authentication bypass in JetBrains TeamCity CI/CD server',severity:'HIGH',cvss_score:9.8,status:'Patched',affected_systems:'TeamCity < 2023.11.4'},
+    {id:5,cve_id:'CVE-2024-1709',name:'ConnectWise ScreenConnect',description:'Authentication bypass leading to path traversal and RCE',severity:'CRITICAL',cvss_score:10.0,status:'Unpatched',affected_systems:'ScreenConnect < 23.9.8'},
+    {id:6,cve_id:'CVE-2024-20767',name:'Adobe ColdFusion',description:'Improper access control allowing arbitrary file reads',severity:'MEDIUM',cvss_score:7.4,status:'Patched',affected_systems:'ColdFusion 2021, 2023'},
+    {id:7,cve_id:'CVE-2023-44487',name:'HTTP/2 Rapid Reset',description:'Distributed denial-of-service via HTTP/2 stream cancellation',severity:'HIGH',cvss_score:7.5,status:'Patched',affected_systems:'Most HTTP/2 servers'},
+  ],
+  relationships: [
+    {id:1,actor_id:'APT-29 (Cozy Bear)',threat_id:1,relationship_type:'Attributed',confidence:'Confirmed',notes:'Fingerprints match known TTPs'},
+    {id:2,actor_id:'Lazarus Group',threat_id:2,relationship_type:'Executed',confidence:'Confirmed',notes:'Wallet address linked to past ops'},
+    {id:3,actor_id:'FIN7',threat_id:3,relationship_type:'Suspected',confidence:'Suspected',notes:'Similar tooling to previous campaigns'},
+    {id:4,actor_id:'Anonymous Sudan',threat_id:8,relationship_type:'Claimed',confidence:'Confirmed',notes:'Group posted on Telegram'},
+    {id:5,actor_id:'Scattered Spider',threat_id:4,relationship_type:'Executed',confidence:'Confirmed',notes:'Identical phishing kit used before'},
+    {id:6,actor_id:'Sandworm',threat_id:5,relationship_type:'Suspected',confidence:'Suspected',notes:'Wiper malware variant matches'},
+    {id:7,actor_id:'Lazarus Group',threat_id:6,relationship_type:'Attributed',confidence:'Suspected',notes:'Ransom note language matches pattern'},
+    {id:8,actor_id:'FIN7',threat_id:7,relationship_type:'Executed',confidence:'Confirmed',notes:'Infrastructure overlap confirmed'},
+  ]
+};
+
+async function api(ep) {
+  try {
+    const r = await fetch(BASE+ep);
+    if(!r.ok) throw new Error('not ok');
+    const d = await r.json();
+    if(!d || (Array.isArray(d) && d.length===0)) throw new Error('empty');
+    return d;
+  } catch {
+    const key = ep.replace('/','');
+    return MOCK[key] || null;
+  }
+}
+
+const typeIcon = {'Data Breach':'💾','Leaked Secret':'🔑','Brute Force':'🔓','Social Engineering':'🎭','Malware':'🦠','Ransomware':'💰','DDoS':'🌊','Phishing':'🎣','Insider Threat':'🕵️','Zero-Day':'💥'};
+
+const PAGE_META = {
+  threats:['Threats','Real-time threat monitoring'],
+  actors:['Threat Actors','Known threat actors and groups'],
+  indicators:['Indicators','Indicators of compromise (IOC)'],
+  vulnerabilities:['Vulnerabilities','Known security vulnerabilities'],
+  relationships:['Relationships','Actor-threat relationships']
+};
+
+function showPage(name, el) {
+  document.querySelectorAll('[id^="page-"]').forEach(p=>p.style.display='none');
+  document.getElementById('page-'+name).style.display='block';
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_META[name][0];
+  document.getElementById('page-sub').textContent = PAGE_META[name][1];
+}
+
+function sevBadge(s) {
+  if(!s) return '<span style="color:var(--muted)">—</span>';
+  const c=s.toUpperCase();
+  return `<span class="badge badge-${c.toLowerCase()}">${c}</span>`;
+}
+function statusBadge(s) {
+  if(!s) return '—';
+  return `<span class="badge badge-${s.toLowerCase()}">${s}</span>`;
+}
+function typeBadge(t) {
+  if(!t) return '—';
+  const slug=t.toLowerCase().replace(/[^a-z]/g,'');
+  return `<span class="badge badge-${slug}">${t}</span>`;
+}
+function timeStr(ts) {
+  if(!ts) return '<span style="color:var(--muted)">—</span>';
+  const d=new Date(ts); if(isNaN(d)) return '<span style="color:var(--muted)">—</span>';
+  return `<span style="color:var(--muted);font-size:12px">${d.toLocaleDateString()}</span>`;
+}
+function scoreBar(v, max=10) {
+  if(v==null||v==='') return '—';
+  v=parseFloat(v)||0;
+  const pct=Math.min(100,(v/max)*100);
+  const col=pct>70?'var(--red)':pct>40?'var(--orange)':'var(--green)';
+  return `<div class="score-bar"><span class="mono">${v}</span><div class="score-track"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div></div>`;
+}
+
+async function api(ep) {
+  try { const r=await fetch(BASE+ep); if(!r.ok) return null; return await r.json(); } catch { return null; }
+}
+
+function pick(obj, keys) { return keys.find(k=>k in obj); }
+
+function openModal(html) {
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(e) { if(e.target.id==='modal-overlay') document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalBtn() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function detailModal(title, obj) {
+  const rows=Object.entries(obj).map(([k,v])=>`
+    <div class="modal-row">
+      <span class="modal-label">${k.replace(/_/g,' ')}</span>
+      <span class="modal-value">${Array.isArray(v)?v.join(', '):(v??'—')}</span>
+    </div>`).join('');
+  openModal(`<div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" onclick="closeModalBtn()">✕</button></div>${rows}`);
+}
+
+/* THREATS */
+async function loadThreats() {
+  const data=await api('/threats');
+  const el=document.getElementById('threats-table');
+  if(!data){el.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>API not reachable.</div>';renderThreatStats([]);return;}
+  allThreats=data; renderThreatStats(data); renderThreats();
+}
+function renderThreatStats(d) {
+  const tot=d.length, act=d.filter(t=>t.status==='Active').length,
+    crit=d.filter(t=>t.severity==='CRITICAL').length, res=d.filter(t=>t.status==='Resolved').length;
+  document.getElementById('threat-stats').innerHTML=`
+    <div class="stat-card card-blue"><div class="stat-label">Total threats</div><div class="stat-value" style="color:var(--text)">${tot}</div><div class="stat-change" style="color:var(--muted)">All time</div></div>
+    <div class="stat-card card-red"><div class="stat-label">Active</div><div class="stat-value" style="color:var(--red)">${act}</div><div class="stat-change" style="color:var(--red)">Needs attention</div></div>
+    <div class="stat-card card-orange"><div class="stat-label">Critical</div><div class="stat-value" style="color:var(--orange)">${crit}</div><div class="stat-change" style="color:var(--orange)">High priority</div></div>
+    <div class="stat-card card-green"><div class="stat-label">Resolved</div><div class="stat-value" style="color:var(--green)">${res}</div><div class="stat-change" style="color:var(--green)">Closed</div></div>`;
+}
+function filterThreats(f,el){threatFilter=f;document.querySelectorAll('#page-threats .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderThreats();}
+function renderThreats(){
+  let list=allThreats;
+  if(threatFilter==='Active') list=list.filter(t=>t.status==='Active');
+  else if(threatFilter==='Resolved') list=list.filter(t=>t.status==='Resolved');
+  else if(threatFilter==='CRITICAL') list=list.filter(t=>t.severity==='CRITICAL');
+  const el=document.getElementById('threats-table');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🛡️</div>No threats found.</div>';return;}
+  el.innerHTML=`<table><thead><tr><th>ID</th><th>Type</th><th>Description</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead><tbody>
+    ${list.map(t=>`<tr onclick='detailModal("${(typeIcon[t.type]||"⚡")} ${t.type||"Threat"} #${t.id}",${JSON.stringify(t).replace(/'/g,"&#39;")})'>
+      <td class="id-cell">#${t.id}</td>
+      <td><span style="font-size:17px;margin-right:8px">${typeIcon[t.type]||'⚡'}</span>${t.type||'—'}</td>
+      <td style="color:var(--muted);max-width:240px">${t.description||'—'}</td>
+      <td>${sevBadge(t.severity)}</td><td>${statusBadge(t.status)}</td>
+      <td>${timeStr(t.timestamp||t.created_at)}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* ACTORS */
+async function loadActors(){
+  const data=await api('/actors');
+  const el=document.getElementById('actors-table');
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">👤</div>No actors found or API not available.</div>';renderActorStats([]);return;}
+  allActors=data; renderActorStats(data); renderActors();
+}
+function renderActorStats(d){
+  const tot=d.length;
+  const ns=d.filter(a=>(a.type||a.category||'').toLowerCase().includes('nation')).length;
+  const cc=d.filter(a=>(a.type||a.category||'').toLowerCase().includes('cyber')).length;
+  const hv=d.filter(a=>(a.type||a.category||'').toLowerCase().includes('hack')).length;
+  document.getElementById('actor-stats').innerHTML=`
+    <div class="stat-card card-blue"><div class="stat-label">Total actors</div><div class="stat-value" style="color:var(--text)">${tot}</div><div class="stat-change" style="color:var(--muted)">Tracked groups</div></div>
+    <div class="stat-card card-red"><div class="stat-label">Nation-State</div><div class="stat-value" style="color:var(--red)">${ns}</div><div class="stat-change" style="color:var(--red)">State sponsored</div></div>
+    <div class="stat-card card-orange"><div class="stat-label">Cybercriminal</div><div class="stat-value" style="color:var(--orange)">${cc}</div><div class="stat-change" style="color:var(--orange)">Financial motive</div></div>
+    <div class="stat-card card-purple"><div class="stat-label">Hacktivist</div><div class="stat-value" style="color:var(--purple)">${hv}</div><div class="stat-change" style="color:var(--purple)">Ideological</div></div>`;
+}
+function filterActors(f,el){actorFilter=f;document.querySelectorAll('#page-actors .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderActors();}
+function renderActors(){
+  let list=allActors;
+  if(actorFilter!=='All') list=list.filter(a=>(a.type||a.category||'').toLowerCase().includes(actorFilter.toLowerCase()));
+  const el=document.getElementById('actors-table');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">👤</div>No actors found.</div>';return;}
+  const s=list[0];
+  const nk=pick(s,['name','actor_name','title'])||Object.keys(s)[0];
+  const tk=pick(s,['type','category','actor_type','group_type']);
+  const ok=pick(s,['origin','country','nationality','region']);
+  const mk=pick(s,['motive','motivation','objective']);
+  const lk=pick(s,['threat_level','level','risk_level']);
+  const ak=pick(s,['aliases','alias','aka']);
+  const ek=pick(s,['description','bio','summary']);
+  el.innerHTML=`<table><thead><tr><th>ID</th><th>Actor</th>${tk?'<th>Type</th>':''}${ok?'<th>Origin</th>':''}${mk?'<th>Motive</th>':''}${lk?'<th>Threat Level</th>':''}${ak?'<th>Aliases</th>':''}</tr></thead><tbody>
+    ${list.map(a=>`<tr onclick='detailModal("👤 Actor: ${(a[nk]||'Unknown').replace(/'/g,"&#39;")}",${JSON.stringify(a).replace(/'/g,"&#39;")})'>
+      <td class="id-cell">#${a.id||'—'}</td>
+      <td><div class="actor-name">${a[nk]||'Unknown'}</div>${ek&&a[ek]?`<div class="actor-sub">${String(a[ek]).substring(0,55)}...</div>`:''}</td>
+      ${tk?`<td>${typeBadge(a[tk])}</td>`:''}
+      ${ok?`<td style="color:var(--muted)">${a[ok]||'—'}</td>`:''}
+      ${mk?`<td style="color:var(--muted);font-size:12px">${a[mk]||'—'}</td>`:''}
+      ${lk?`<td>${sevBadge(a[lk])}</td>`:''}
+      ${ak?`<td style="color:var(--muted);font-size:11px">${Array.isArray(a[ak])?a[ak].join(', '):a[ak]||'—'}</td>`:''}
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* INDICATORS */
+async function loadIndicators(){
+  const data=await api('/indicators');
+  const el=document.getElementById('indicators-table');
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔍</div>No indicators found or API not available.</div>';renderIOCStats([]);return;}
+  allIOC=data; renderIOCStats(data); renderIOC();
+}
+function renderIOCStats(d){
+  const tot=d.length;
+  const ips=d.filter(i=>(i.type||'').toUpperCase()==='IP').length;
+  const dom=d.filter(i=>(i.type||'').toLowerCase()==='domain').length;
+  const hsh=d.filter(i=>(i.type||'').toLowerCase()==='hash').length;
+  document.getElementById('ioc-stats').innerHTML=`
+    <div class="stat-card card-blue"><div class="stat-label">Total IOCs</div><div class="stat-value" style="color:var(--text)">${tot}</div><div class="stat-change" style="color:var(--muted)">All indicators</div></div>
+    <div class="stat-card card-cyan"><div class="stat-label">IP Addresses</div><div class="stat-value" style="color:var(--cyan)">${ips}</div><div class="stat-change" style="color:var(--cyan)">Malicious IPs</div></div>
+    <div class="stat-card card-purple"><div class="stat-label">Domains</div><div class="stat-value" style="color:var(--purple)">${dom}</div><div class="stat-change" style="color:var(--purple)">C2 & phishing</div></div>
+    <div class="stat-card card-orange"><div class="stat-label">Hashes</div><div class="stat-value" style="color:var(--orange)">${hsh}</div><div class="stat-change" style="color:var(--orange)">Malware samples</div></div>`;
+}
+function filterIOC(f,el){iocFilter=f;document.querySelectorAll('#page-indicators .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderIOC();}
+function renderIOC(){
+  let list=allIOC;
+  if(iocFilter!=='All') list=list.filter(i=>(i.type||'').toUpperCase()===iocFilter.toUpperCase());
+  const el=document.getElementById('indicators-table');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔍</div>No indicators found.</div>';return;}
+  const s=list[0];
+  const vk=pick(s,['value','indicator','ioc_value','data','indicator_value'])||Object.keys(s)[1]||Object.keys(s)[0];
+  const tk=pick(s,['type','ioc_type','indicator_type']);
+  const ck=pick(s,['confidence','confidence_level','score']);
+  const stk=pick(s,['status','state']);
+  const thk=pick(s,['threat_id','related_threat','threat']);
+  el.innerHTML=`<table><thead><tr><th>ID</th>${tk?'<th>Type</th>':''}<th>Value / Indicator</th>${ck?'<th>Confidence</th>':''}${stk?'<th>Status</th>':''}${thk?'<th>Threat</th>':''}<th>Date</th></tr></thead><tbody>
+    ${list.map(i=>`<tr onclick='detailModal("🔍 Indicator #${i.id}",${JSON.stringify(i).replace(/'/g,"&#39;")})'>
+      <td class="id-cell">#${i.id||'—'}</td>
+      ${tk?`<td>${typeBadge(i[tk])}</td>`:''}
+      <td><div class="ioc-value" title="${i[vk]||''}">${i[vk]||'—'}</div></td>
+      ${ck?`<td>${scoreBar(i[ck], i[ck]>1?10:1)}</td>`:''}
+      ${stk?`<td>${statusBadge(i[stk])}</td>`:''}
+      ${thk?`<td class="id-cell">${i[thk]?'#'+i[thk]:'—'}</td>`:''}
+      <td>${timeStr(i.created_at||i.timestamp||i.date)}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* VULNERABILITIES */
+async function loadVulnerabilities(){
+  const data=await api('/vulnerabilities');
+  const el=document.getElementById('vulnerabilities-table');
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>No vulnerabilities found or API not available.</div>';renderVulnStats([]);return;}
+  allVulns=data; renderVulnStats(data); renderVulns();
+}
+function renderVulnStats(d){
+  const tot=d.length;
+  const crit=d.filter(v=>(v.severity||v.cvss_severity||'').toUpperCase()==='CRITICAL').length;
+  const hi=d.filter(v=>(v.severity||v.cvss_severity||'').toUpperCase()==='HIGH').length;
+  const pat=d.filter(v=>(v.status||v.patch_status||'').toLowerCase().includes('patch')).length;
+  document.getElementById('vuln-stats').innerHTML=`
+    <div class="stat-card card-blue"><div class="stat-label">Total CVEs</div><div class="stat-value" style="color:var(--text)">${tot}</div><div class="stat-change" style="color:var(--muted)">All time</div></div>
+    <div class="stat-card card-red"><div class="stat-label">Critical</div><div class="stat-value" style="color:var(--red)">${crit}</div><div class="stat-change" style="color:var(--red)">Immediate action</div></div>
+    <div class="stat-card card-orange"><div class="stat-label">High</div><div class="stat-value" style="color:var(--orange)">${hi}</div><div class="stat-change" style="color:var(--orange)">High risk</div></div>
+    <div class="stat-card card-green"><div class="stat-label">Patched</div><div class="stat-value" style="color:var(--green)">${pat}</div><div class="stat-change" style="color:var(--green)">Mitigated</div></div>`;
+}
+function filterVulns(f,el){vulnFilter=f;document.querySelectorAll('#page-vulnerabilities .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderVulns();}
+function renderVulns(){
+  let list=allVulns;
+  if(vulnFilter!=='All') list=list.filter(v=>(v.severity||v.cvss_severity||'').toUpperCase()===vulnFilter.toUpperCase());
+  const el=document.getElementById('vulnerabilities-table');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>No vulnerabilities found.</div>';return;}
+  const s=list[0];
+  const cve=pick(s,['cve_id','cve','vulnerability_id']);
+  const nk=pick(s,['name','title','vulnerability_name']);
+  const dk=pick(s,['description','summary','details']);
+  const sk=pick(s,['severity','cvss_severity','risk_level']);
+  const ck=pick(s,['cvss_score','cvss','score','base_score']);
+  const stk=pick(s,['status','patch_status','remediation_status']);
+  const afk=pick(s,['affected_systems','affected','software']);
+  el.innerHTML=`<table><thead><tr><th>ID</th>${cve?'<th>CVE</th>':''}${nk?'<th>Name</th>':''}${dk?'<th>Description</th>':''}${sk?'<th>Severity</th>':''}${ck?'<th>CVSS</th>':''}${stk?'<th>Status</th>':''}${afk?'<th>Affected</th>':''}</tr></thead><tbody>
+    ${list.map(v=>`<tr onclick='detailModal("⚠️ ${v[cve]||("Vuln #"+v.id)}",${JSON.stringify(v).replace(/'/g,"&#39;")})'>
+      <td class="id-cell">#${v.id||'—'}</td>
+      ${cve?`<td><span class="cve-id">${v[cve]||'—'}</span></td>`:''}
+      ${nk?`<td style="font-weight:500;max-width:160px">${v[nk]||'—'}</td>`:''}
+      ${dk?`<td style="color:var(--muted);font-size:12px;max-width:220px">${String(v[dk]||'').substring(0,70)}...</td>`:''}
+      ${sk?`<td>${sevBadge(v[sk])}</td>`:''}
+      ${ck?`<td>${scoreBar(v[ck],10)}</td>`:''}
+      ${stk?`<td>${statusBadge(v[stk])}</td>`:''}
+      ${afk?`<td style="color:var(--muted);font-size:11px">${Array.isArray(v[afk])?v[afk].join(', '):v[afk]||'—'}</td>`:''}
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* RELATIONSHIPS */
+async function loadRelationships(){
+  const data=await api('/relationships');
+  const el=document.getElementById('relationships-table');
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔗</div>No relationships found or API not available.</div>';renderRelStats([]);return;}
+  allRels=data; renderRelStats(data); renderRels();
+}
+function renderRelStats(d){
+  const tot=d.length;
+  const con=d.filter(r=>(r.confidence||r.status||'').toLowerCase().includes('confirm')).length;
+  const sus=d.filter(r=>(r.confidence||r.status||'').toLowerCase().includes('suspect')).length;
+  const uac=[...new Set(d.map(r=>r.actor_id||r.actor||r.source||r.from).filter(Boolean))].length;
+  document.getElementById('rel-stats').innerHTML=`
+    <div class="stat-card card-blue"><div class="stat-label">Total links</div><div class="stat-value" style="color:var(--text)">${tot}</div><div class="stat-change" style="color:var(--muted)">All relationships</div></div>
+    <div class="stat-card card-green"><div class="stat-label">Confirmed</div><div class="stat-value" style="color:var(--green)">${con}</div><div class="stat-change" style="color:var(--green)">Verified links</div></div>
+    <div class="stat-card card-yellow"><div class="stat-label">Suspected</div><div class="stat-value" style="color:var(--yellow)">${sus}</div><div class="stat-change" style="color:var(--yellow)">Under review</div></div>
+    <div class="stat-card card-purple"><div class="stat-label">Unique actors</div><div class="stat-value" style="color:var(--purple)">${uac}</div><div class="stat-change" style="color:var(--purple)">Linked actors</div></div>`;
+}
+function filterRels(f,el){relFilter=f;document.querySelectorAll('#page-relationships .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderRels();}
+function renderRels(){
+  let list=allRels;
+  if(relFilter==='Confirmed') list=list.filter(r=>(r.confidence||r.status||'').toLowerCase().includes('confirm'));
+  else if(relFilter==='Suspected') list=list.filter(r=>(r.confidence||r.status||'').toLowerCase().includes('suspect'));
+  const el=document.getElementById('relationships-table');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔗</div>No relationships found.</div>';return;}
+  const s=list[0];
+  const ak=pick(s,['actor_id','actor_name','actor','source','from']);
+  const thk=pick(s,['threat_id','threat_name','threat','target','to']);
+  const rtk=pick(s,['relationship_type','type','rel_type','relation']);
+  const ck=pick(s,['confidence','confidence_level','status','certainty']);
+  const nk=pick(s,['notes','description','details']);
+  el.innerHTML=`<table><thead><tr><th>ID</th>${ak?'<th>Actor</th>':''}<th style="text-align:center">Link</th>${thk?'<th>Threat</th>':''}${rtk?'<th>Relationship</th>':''}${ck?'<th>Confidence</th>':''}${nk?'<th>Notes</th>':''}</tr></thead><tbody>
+    ${list.map(r=>`<tr onclick='detailModal("🔗 Relationship #${r.id}",${JSON.stringify(r).replace(/'/g,"&#39;")})'>
+      <td class="id-cell">#${r.id||'—'}</td>
+      ${ak?`<td><span class="rel-from">${r[ak]||'—'}</span></td>`:''}
+      <td style="text-align:center;color:var(--muted);font-size:18px">🔗</td>
+      ${thk?`<td><span class="rel-to">${r[thk]||'—'}</span></td>`:''}
+      ${rtk?`<td style="font-size:12px;color:var(--muted)">${r[rtk]||'—'}</td>`:''}
+      ${ck?`<td>${typeBadge(r[ck])}</td>`:''}
+      ${nk?`<td style="color:var(--muted);font-size:12px;max-width:180px">${String(r[nk]||'').substring(0,55)||'—'}</td>`:''}
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function refreshAll(){
+  loadThreats(); loadActors(); loadIndicators(); loadVulnerabilities(); loadRelationships();
+  const t=new Date().toLocaleTimeString();
+  document.getElementById('refresh-time').textContent='Updated '+t;
+  document.getElementById('last-upd').textContent=t;
+}
+
+refreshAll();
+</script>
+</body>
+</html>
